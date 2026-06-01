@@ -28,6 +28,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // ===== single source of truth (mirrors config/scene.json) =================
 const S = {
@@ -180,6 +182,37 @@ gui.add({ exportScene(){ const b=new Blob([JSON.stringify(S,null,2)],{type:'appl
   const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='scene.json'; a.click(); }},'exportScene').name('⬇ Export scene.json');
 
 function rebuild(){ buildInstances(); }
+
+// ===== bridge (web -> param_server :8787 -> UE5 MPC), IO ===================
+const BRIDGE = { enabled:false, url:'http://localhost:8787/params' };
+function hexRGB(h){ const c=new THREE.Color(h); return [c.r,c.g,c.b]; }
+function toSchema(){ return { mesh:{
+    wave_speed:S.motion.speed*2, wave_amplitude:S.motion.amp*5,
+    wave_frequency:S.motion.freq, displacement:S.motion.amp*200, wave_decay:1.0-S.motion.softness*0.5
+  }, material:{ base_color:hexRGB(S.glass.color), roughness:S.glass.roughness,
+    transmission:S.glass.transmission, ior:S.glass.ior, emissive_strength:S.led.emissive } }; }
+async function pushBridge(){ if(!BRIDGE.enabled) return;
+  try{ await fetch(BRIDGE.url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(toSchema())});
+       document.getElementById('stat').dataset.bridge='ok'; }catch(e){ /* server not running */ } }
+function subscribeBridge(){ try{ const es=new EventSource('http://localhost:8787/events');
+  es.addEventListener('param',ev=>{ try{ const p=JSON.parse(ev.data);
+    if(p.mesh){ if(p.mesh.wave_speed!=null)S.motion.speed=p.mesh.wave_speed/2;
+      if(p.mesh.wave_frequency!=null)S.motion.freq=p.mesh.wave_frequency;
+      if(p.mesh.wave_amplitude!=null)S.motion.amp=p.mesh.wave_amplitude/5; syncU(); gui.controllersRecursive().forEach(c=>c.updateDisplay()); } }catch(e){} }); }catch(e){} }
+
+const io=gui.addFolder('bridge → UE5 / IO');
+io.add(BRIDGE,'enabled').name('push to bridge :8787').onChange(v=>{ if(v){pushBridge();subscribeBridge();} });
+io.add({ push(){ pushBridge(); } },'push').name('▶ push params now');
+io.add({ exportGLB(){ new GLTFExporter().parse(inst,(glb)=>{
+    const b=new Blob([glb],{type:'model/gltf-binary'}); const a=document.createElement('a');
+    a.href=URL.createObjectURL(b); a.download='glass_led_volume_web.glb'; a.click(); },
+    (err)=>alert('GLB export failed: '+err), {binary:true,onlyVisible:true}); }},'exportGLB').name('⬇ Export GLB (web)');
+io.add({ loadBaked(){ new GLTFLoader().load('../assets/hero/GlassLED_Slab.glb',(g)=>{
+    g.scene.position.set(2.2,0,0); scene.add(g.scene);
+    const m=g.scene.animations||g.animations; document.getElementById('stat').textContent+=' · baked GLB loaded'; },
+    undefined,(e)=>alert('baked GLB load failed (serve over http): '+e)); }},'loadBaked').name('📦 Load baked hero GLB');
+// auto-push on any GUI change
+gui.controllersRecursive().forEach(c=>c.onFinishChange(()=>pushBridge()));
 
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
 const clock=new THREE.Clock();
