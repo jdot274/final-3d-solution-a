@@ -11,3 +11,12 @@ Thumbs.db
 .DS_Store
 # stray session artifacts (not part of the solution)
 production/
+
+# huge regenerable scene exports (96-159MB)
+assets/scene/SPIN_Master.blend
+assets/scene/SPIN_Master.usdc
+assets/scene/SPIN_Master.usdz
+assets/scene/SPIN_Master.glb
+assets/scene/SPIN_RealCourt.*
+assets/scene/SPIN_Scene.*
+renders/SPIN_realcourt.png
