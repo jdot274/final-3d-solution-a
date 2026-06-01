@@ -33,3 +33,5 @@ assets/engine/
 assets/game/
 renders/SPIN_final_game.png
 renders/SPIN_led_court.png
+renders/SPIN_full_led.png
+assets/game/SPIN_FullLED.*
