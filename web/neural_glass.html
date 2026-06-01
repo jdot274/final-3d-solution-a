@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Neural Wave — Glass Mesh</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: #000;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+      }
+      #hud {
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: rgba(127, 249, 255, 0.45);
+        font:
+          11px/1.8 'Courier New',
+          monospace;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        text-align: center;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="hud">
+      Neural Wave Glass &mdash; triplanar 4K normals &bull; tangent/world-space
+      layering &bull; fresnel &bull; iridescence<br />drag orbit &bull; scroll
+      zoom
+    </div>
+
+    <!-- Three.js + OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+      /* ------------------------------------------------------------------ */
+      /*  VERTEX SHADER                                                       */
+      /* ------------------------------------------------------------------ */
+      const vertexShader = /* glsl */ `
+uniform float uTime;
+
+varying vec3  vWorldPos;
+varying vec3  vWN;       // world-space geometric normal
+varying vec3  vViewDir;
+varying vec2  vUv;
+varying float vDisp;
+varying mat3  vTBN;      // tangent/bitangent/normal → world-space matrix
+
+// Multi-frequency radial wave (neural emitter equation)
+float waveZ(vec2 p, float t) {
+  float r = length(p);
+  float w  = sin(6.28318 * r - t * 2.0)  * exp(-0.25 * r);
+        w += sin(12.5664 * r - t * 3.5 + 1.2) * exp(-0.40 * r) * 0.30;
+        w += sin(25.1327 * r - t * 5.0 + 2.4) * exp(-0.70 * r) * 0.08;
+  return w;
+}
+
+void main() {
+  vec3  pos = position;
+  float z   = waveZ(pos.xy, uTime);
+  pos.z     = z;
+
+  // Finite-difference tangent frame (analytical normals from displacement)
+  const float EPS = 0.045;
+  float zx = waveZ(pos.xy + vec2(EPS, 0.0), uTime);
+  float zy = waveZ(pos.xy + vec2(0.0, EPS), uTime);
+
+  vec3 T = normalize(vec3(EPS, 0.0,  zx - z));   // tangent
+  vec3 B = normalize(vec3(0.0, EPS,  zy - z));   // bitangent
+  vec3 N = normalize(cross(T, B));               // surface normal
+
+  vDisp = z;
+  vUv   = uv;
+
+  // World-space quantities
+  mat3 mMatrix3  = mat3(modelMatrix);
+  vec4 worldPos4 = modelMatrix * vec4(pos, 1.0);
+  vWorldPos  = worldPos4.xyz;
+  vWN        = normalize(mMatrix3 * N);
+  vViewDir   = normalize(cameraPosition - vWorldPos);
+
+  // TBN matrix: maps tangent-space normals → world space
+  vTBN = mat3(
+    normalize(mMatrix3 * T),
+    normalize(mMatrix3 * B),
+    vWN
+  );
+
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+}
+`;
+
+      /* ------------------------------------------------------------------ */
+      /*  FRAGMENT SHADER                                                     */
+      /* ------------------------------------------------------------------ */
+      const fragmentShader = /* glsl */ `
+uniform float uTime;
+
+varying vec3  vWorldPos;
+varying vec3  vWN;
+varying vec3  vViewDir;
+varying vec2  vUv;
+varying float vDisp;
+varying mat3  vTBN;
+
+// ── Value noise (GPU-side "4K normal map" source) ─────────────────────────
+vec3 hash3(vec3 p) {
+  p = fract(p * vec3(0.1031, 0.1030, 0.0973));
+  p += dot(p, p.yxz + 33.33);
+  return fract((p.xxy + p.yxx) * p.zyx);
+}
+float vnoise(vec3 p) {
+  vec3 i = floor(p), f = fract(p);
+  vec3 u = f * f * (3.0 - 2.0 * f);
+  float v000 = dot(hash3(i + vec3(0,0,0)) * 2.0 - 1.0, f - vec3(0,0,0));
+  float v100 = dot(hash3(i + vec3(1,0,0)) * 2.0 - 1.0, f - vec3(1,0,0));
+  float v010 = dot(hash3(i + vec3(0,1,0)) * 2.0 - 1.0, f - vec3(0,1,0));
+  float v110 = dot(hash3(i + vec3(1,1,0)) * 2.0 - 1.0, f - vec3(1,1,0));
+  float v001 = dot(hash3(i + vec3(0,0,1)) * 2.0 - 1.0, f - vec3(0,0,1));
+  float v101 = dot(hash3(i + vec3(1,0,1)) * 2.0 - 1.0, f - vec3(1,0,1));
+  float v011 = dot(hash3(i + vec3(0,1,1)) * 2.0 - 1.0, f - vec3(0,1,1));
+  float v111 = dot(hash3(i + vec3(1,1,1)) * 2.0 - 1.0, f - vec3(1,1,1));
+  return mix(mix(mix(v000,v100,u.x), mix(v010,v110,u.x), u.y),
+             mix(mix(v001,v101,u.x), mix(v011,v111,u.x), u.y), u.z);
+}
+
+// FBM (fractal normal detail – simulates 4K texture resolution)
+float fbm(vec3 p) {
+  float v = 0.0, a = 0.5;
+  for (int i = 0; i < 5; i++) {
+    v += a * vnoise(p);
+    p *= 2.1; a *= 0.45;
+  }
+  return v;
+}
+
+// Derive a normal from a 3-D noise field via central differences
+vec3 noiseNormal(vec3 p, float scale, float t, float eps) {
+  vec3 sp = p * scale + vec3(0.0, 0.0, t);
+  float dx = fbm(sp + vec3(eps,0,0)) - fbm(sp - vec3(eps,0,0));
+  float dy = fbm(sp + vec3(0,eps,0)) - fbm(sp - vec3(0,eps,0));
+  float dz = fbm(sp + vec3(0,0,eps)) - fbm(sp - vec3(0,0,eps));
+  return normalize(vec3(dx, dy, dz));
+}
+
+// ── Triplanar projection ──────────────────────────────────────────────────
+// Samples a normal from three axis-aligned planes and blends by world normal
+vec3 triplanarNormal(vec3 wp, vec3 wn, float scale, float t) {
+  // Blend weights: favour the dominant axis, sharp falloff
+  vec3 bw = pow(abs(wn), vec3(6.0));
+  bw /= dot(bw, vec3(1.0));
+
+  const float EPS = 0.008;
+  // YZ plane  (projected along X)
+  vec3 nX = noiseNormal(wp.yzx, scale, t, EPS);
+  // XZ plane  (projected along Y)
+  vec3 nY = noiseNormal(wp.xzy, scale, t, EPS);
+  // XY plane  (projected along Z)
+  vec3 nZ = noiseNormal(wp.xyz, scale, t, EPS);
+
+  return normalize(nX * bw.x + nY * bw.y + nZ * bw.z);
+}
+
+// ── Fresnel (Schlick) ─────────────────────────────────────────────────────
+float fresnelSchlick(float cosT, float f0) {
+  return f0 + (1.0 - f0) * pow(clamp(1.0 - cosT, 0.0, 1.0), 5.0);
+}
+
+// ── Thin-film iridescence ─────────────────────────────────────────────────
+vec3 iridescence(float NdotV, float thickness) {
+  float phi = 6.28318 * thickness * NdotV;
+  return vec3(
+    0.5 + 0.5 * cos(phi * 1.00),
+    0.5 + 0.5 * cos(phi * 1.47 + 2.094),
+    0.5 + 0.5 * cos(phi * 2.00 + 4.189)
+  );
+}
+
+// ── GGX specular (micro-facet BRDF lobe) ─────────────────────────────────
+float GGX(float NdotH, float roughness) {
+  float a  = roughness * roughness;
+  float a2 = a * a;
+  float d  = NdotH * NdotH * (a2 - 1.0) + 1.0;
+  return a2 / (3.14159 * d * d);
+}
+
+void main() {
+  vec3 N_geo = normalize(vWN);
+  vec3 V     = normalize(vViewDir);
+
+  // ── LAYER 1: triplanar normals at three scales (4K-class detail) ─────────
+  float t0 = uTime * 0.18;
+  vec3 tp1 = triplanarNormal(vWorldPos * 0.30, N_geo, 1.8, t0);          // macro
+  vec3 tp2 = triplanarNormal(vWorldPos * 1.10, N_geo, 4.5, t0 * 1.6);   // meso
+  vec3 tp3 = triplanarNormal(vWorldPos * 4.50, N_geo, 9.0, t0 * 2.8);   // micro
+
+  // ── LAYER 2: blend triplanar normals (weighted octave stack) ─────────────
+  vec3 detailTS = normalize(tp1 * 0.55 + tp2 * 0.30 + tp3 * 0.15);
+
+  // ── LAYER 3: reorient detail normal into world space via TBN ─────────────
+  // "Tangent-space to world-space": vTBN maps tangent → world
+  vec3 detailWS = normalize(vTBN * detailTS);
+
+  // ── LAYER 4: final normal = blend world-space geo + layered detail ────────
+  float detailStr = 0.38 + 0.18 * sin(uTime * 0.4);   // animated blend
+  vec3 N = normalize(mix(N_geo, detailWS, detailStr));
+
+  float NdotV   = max(dot(N, V), 0.0);
+  float NdotVGeo= max(dot(N_geo, V), 0.0);
+
+  // ── LIGHTS ───────────────────────────────────────────────────────────────
+  vec3 L1 = normalize(vec3( 1.0,  0.8, 2.5));
+  vec3 L2 = normalize(vec3(-1.2,  0.5, 1.8));
+  vec3 L3 = normalize(vec3( 0.0, -1.0, 1.2));
+
+  // ── GGX SPECULAR ─────────────────────────────────────────────────────────
+  float rough = 0.04;   // very smooth glass
+  vec3 H1 = normalize(V + L1);
+  vec3 H2 = normalize(V + L2);
+  vec3 H3 = normalize(V + L3);
+  float NdotH1 = max(dot(N, H1), 0.0);
+  float NdotH2 = max(dot(N, H2), 0.0);
+  float NdotH3 = max(dot(N, H3), 0.0);
+
+  float s1 = GGX(NdotH1, rough) * max(dot(N, L1), 0.0);
+  float s2 = GGX(NdotH2, rough) * max(dot(N, L2), 0.0) * 0.6;
+  float s3 = GGX(NdotH3, rough) * max(dot(N, L3), 0.0) * 0.4;
+
+  vec3 specColor = vec3(0.55, 0.85, 1.00) * s1
+                 + vec3(0.45, 0.25, 1.00) * s2
+                 + vec3(1.00, 0.95, 0.90) * s3;
+
+  // ── FRESNEL ───────────────────────────────────────────────────────────────
+  float f0      = 0.04;   // glass IOR ~1.5
+  float fres    = fresnelSchlick(NdotV, f0);
+  float fresGeo = fresnelSchlick(NdotVGeo, f0);
+
+  // ── IRIDESCENCE (thin-film, animated thickness) ───────────────────────────
+  float iridThk = 580.0 + 220.0 * sin(uTime * 0.35 + vWorldPos.x * 0.8
+                                        + vWorldPos.y * 0.6);
+  vec3 iridCol = iridescence(NdotV, iridThk);
+
+  // ── TRANSMISSION / GLASS BASE ─────────────────────────────────────────────
+  // Tint: dark cool blue in troughs, bright cyan at crests
+  float h = smoothstep(-0.65, 0.85, vDisp);
+  vec3 glassBase = mix(vec3(0.01, 0.04, 0.14), vec3(0.05, 0.72, 1.00), h);
+
+  // Fake refraction: shift UV by normal and sample a gradient
+  vec2 refractUV = vUv + detailWS.xy * 0.06 * (1.0 - fres);
+  vec3 refractBG = mix(vec3(0.0, 0.02, 0.08), vec3(0.0, 0.06, 0.18),
+                       refractUV.y);
+
+  // ── SUBSURFACE / EDGE SCATTER ─────────────────────────────────────────────
+  float sss = pow(1.0 - NdotVGeo, 3.5) * 0.9
+            * smoothstep(0.1, 0.9, h);          // only at crests
+  vec3 sssCol = vec3(0.0, 0.65, 1.0) * sss;
+
+  // ── PARTICLE EMISSION (wave-crest glow) ───────────────────────────────────
+  float glowPulse = 0.5 + 0.5 * sin(uTime * 2.0 + vWorldPos.x + vWorldPos.y * 1.3);
+  float glowMask  = smoothstep(0.3, 1.0, h) * pow(1.0 - NdotVGeo, 3.0);
+  vec3  glowHue   = mix(vec3(0.0, 1.0, 1.0), vec3(0.6, 0.1, 1.0), glowPulse);
+  vec3  glowCol   = glowHue * glowMask * 2.5;
+
+  // ── COMPOSE ───────────────────────────────────────────────────────────────
+  // Transmission layer (what shines through)
+  vec3 col = refractBG * (1.0 - fres) * 0.6;
+  // Glass tint
+  col += glassBase * 0.12;
+  // Specular
+  col += specColor * 1.8;
+  // Iridescence at grazing
+  col += iridCol * fres * 0.55;
+  // Subsurface
+  col += sssCol;
+  // Glow
+  col += glowCol;
+
+  // ── TONE MAP + GAMMA ──────────────────────────────────────────────────────
+  col = col / (col + 0.9);                  // Reinhard
+  col = pow(max(col, 0.0), vec3(0.4545));   // gamma 2.2
+
+  // ── ALPHA (glass transparency) ────────────────────────────────────────────
+  float alpha = 0.18
+              + fres * 0.68
+              + (s1 + s2 + s3) * 0.06
+              + glowMask * 0.25;
+  alpha = clamp(alpha, 0.0, 1.0);
+
+  gl_FragColor = vec4(col, alpha);
+}
+`;
+
+      /* ------------------------------------------------------------------ */
+      /*  SCENE SETUP                                                         */
+      /* ------------------------------------------------------------------ */
+      const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: false,
+      });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      document.body.appendChild(renderer.domElement);
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x00010d);
+
+      const camera = new THREE.PerspectiveCamera(
+        52,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        200,
+      );
+      camera.position.set(0, -13, 9);
+      camera.lookAt(0, 0, 0);
+
+      const controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.06;
+      controls.minDistance = 4;
+      controls.maxDistance = 40;
+
+      /* ------------------------------------------------------------------ */
+      /*  STAR FIELD BACKGROUND                                               */
+      /* ------------------------------------------------------------------ */
+      (() => {
+        const count = 2200;
+        const pos = new Float32Array(count * 3);
+        for (let i = 0; i < count; i++) {
+          const r = 80 + Math.random() * 60;
+          const theta = Math.random() * Math.PI * 2;
+          const phi = Math.acos(2 * Math.random() - 1);
+          pos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+          pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+          pos[i * 3 + 2] = r * Math.cos(phi);
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        scene.add(
+          new THREE.Points(
+            geo,
+            new THREE.PointsMaterial({
+              color: 0xaaddff,
+              size: 0.18,
+              sizeAttenuation: true,
+            }),
+          ),
+        );
+      })();
+
+      /* ------------------------------------------------------------------ */
+      /*  WAVE MESH                                                           */
+      /* ------------------------------------------------------------------ */
+      const N = 128; // 128×128 = high-res for smooth normals
+      const geometry = new THREE.PlaneGeometry(10, 10, N - 1, N - 1);
+
+      const uniforms = {
+        uTime: { value: 0 },
+      };
+
+      const material = new THREE.ShaderMaterial({
+        uniforms,
+        vertexShader,
+        fragmentShader,
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        blending: THREE.NormalBlending,
+      });
+
+      // Back-face pass for the inner refraction glow
+      const backMat = new THREE.ShaderMaterial({
+        uniforms,
+        vertexShader,
+        fragmentShader,
+        transparent: true,
+        depthWrite: false,
+        side: THREE.BackSide,
+        blending: THREE.AdditiveBlending,
+      });
+
+      const meshBack = new THREE.Mesh(geometry, backMat);
+      const meshFront = new THREE.Mesh(geometry, material);
+
+      // Subtle wireframe on top — reveals the tangent-space detail
+      const wireMat = new THREE.MeshBasicMaterial({
+        color: 0x00ffff,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.04,
+      });
+      const meshWire = new THREE.Mesh(geometry, wireMat);
+
+      scene.add(meshBack);
+      scene.add(meshFront);
+      scene.add(meshWire);
+
+      /* ------------------------------------------------------------------ */
+      /*  GLOW PARTICLES at wave crests                                       */
+      /* ------------------------------------------------------------------ */
+      const PCOUNT = 900;
+      const pPos = new Float32Array(PCOUNT * 3);
+      const pGeo = new THREE.BufferGeometry();
+      pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+      const particles = new THREE.Points(
+        pGeo,
+        new THREE.PointsMaterial({
+          color: 0x00ffff,
+          size: 0.06,
+          sizeAttenuation: true,
+          transparent: true,
+          opacity: 0.7,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        }),
+      );
+      scene.add(particles);
+
+      /* ------------------------------------------------------------------ */
+      /*  ANIMATION LOOP                                                      */
+      /* ------------------------------------------------------------------ */
+      const DECAY = 0.25;
+      const clock = new THREE.Clock();
+
+      function waveZ(x, y, t) {
+        const r = Math.sqrt(x * x + y * y);
+        return (
+          Math.sin(6.28318 * r - t * 2.0) * Math.exp(-DECAY * r) +
+          Math.sin(12.5664 * r - t * 3.5 + 1.2) * Math.exp(-0.4 * r) * 0.3 +
+          Math.sin(25.1327 * r - t * 5.0 + 2.4) * Math.exp(-0.7 * r) * 0.08
+        );
+      }
+
+      // Update glow particle positions to ride wave crests
+      function updateParticles(t) {
+        const pos = pGeo.attributes.position;
+        for (let i = 0; i < PCOUNT; i++) {
+          const angle = (i / PCOUNT) * Math.PI * 2 * 7 + t * 0.15;
+          const rad = 0.5 + ((i * 1.618) % 4.5);
+          const x = Math.cos(angle) * rad;
+          const y = Math.sin(angle) * rad;
+          const z = waveZ(x, y, t) + 0.04 + 0.02 * Math.sin(t * 3 + i);
+          pos.setXYZ(i, x, y, z);
+        }
+        pos.needsUpdate = true;
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+        const t = clock.getElapsedTime();
+        uniforms.uTime.value = t;
+        updateParticles(t);
+        controls.update();
+        renderer.render(scene, camera);
+      }
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      animate();
+    </script>
+  </body>
+</html>
