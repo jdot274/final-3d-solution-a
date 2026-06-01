@@ -143,14 +143,21 @@ cam.location=(-9,-9,4.5); look=mathutils.Vector((0,0,1.5))-cam.location
 cam.rotation_euler=look.to_track_quat('-Z','Y').to_euler(); cd.lens=42; cd.dof.use_dof=True; cd.dof.focus_distance=13; cd.dof.aperture_fstop=2.8
 to(cam,C_CAM)
 
-# ---------------- compositor post-processing (glare/bloom + grade) ----------------
-sc.use_nodes=True; cnt=sc.node_tree; cnt.nodes.clear()
-rl=cnt.nodes.new("CompositorNodeRLayers"); comp=cnt.nodes.new("CompositorNodeComposite")
-glare=cnt.nodes.new("CompositorNodeGlare"); glare.glare_type='FOG_GLOW'; glare.threshold=0.7
-try: glare.size=7
-except Exception: pass
-cb=cnt.nodes.new("CompositorNodeColorBalance")
-cnt.links.new(rl.outputs["Image"],glare.inputs["Image"]); cnt.links.new(glare.outputs["Image"],cb.inputs["Image"]); cnt.links.new(cb.outputs["Image"],comp.inputs["Image"])
+# ---------------- compositor post-processing (glare/bloom + grade) — guarded for 5.1 ----------------
+try:
+    sc.use_nodes=True
+    cnt=getattr(sc,'node_tree',None) or getattr(sc,'compositing_node_group',None)
+    if cnt is not None:
+        cnt.nodes.clear()
+        rl=cnt.nodes.new("CompositorNodeRLayers"); comp=cnt.nodes.new("CompositorNodeComposite")
+        glare=cnt.nodes.new("CompositorNodeGlare"); glare.glare_type='FOG_GLOW'; glare.threshold=0.7
+        try: glare.size=7
+        except Exception: pass
+        cb=cnt.nodes.new("CompositorNodeColorBalance")
+        cnt.links.new(rl.outputs["Image"],glare.inputs["Image"]); cnt.links.new(glare.outputs["Image"],cb.inputs["Image"]); cnt.links.new(cb.outputs["Image"],comp.inputs["Image"])
+        print("[MAX] compositor post set")
+except Exception as e:
+    print("[MAX] compositor skipped:", e)
 
 # ---------------- render + exports ----------------
 sc.frame_set(20)

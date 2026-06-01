@@ -24,3 +24,6 @@ renders/SPIN_realcourt.png
 # huge master usd/glb (regenerable)
 assets/master/all_3d_assets.usd
 assets/master/all_3d_assets.glb
+assets/master/SPIN_maximal.glb
+assets/master/SPIN_maximal.usdc
+assets/master/SPIN_Maximal.blend
