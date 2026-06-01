@@ -20,3 +20,7 @@ assets/scene/SPIN_Master.glb
 assets/scene/SPIN_RealCourt.*
 assets/scene/SPIN_Scene.*
 renders/SPIN_realcourt.png
+
+# huge master usd/glb (regenerable)
+assets/master/all_3d_assets.usd
+assets/master/all_3d_assets.glb
