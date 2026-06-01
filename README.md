@@ -1,5 +1,7 @@
 # final-3d-solution-a — Instanced Glass LED Volume
 
+**🌐 Live site: https://final-3d-deploy.vercel.app** (Vercel) — open the hub, all versions playable in-browser.
+
 A fully dynamic, **engine-agnostic**, **instanced** glassy LED volume: real-time in the
 browser, portable as baked 3D files, defined with open-standard materials — runnable
 **outside UE5 or inside it**. One `config/scene.json` drives the live web editor, the
