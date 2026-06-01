@@ -30,7 +30,13 @@ core/
     glass_openpbr.mtlx  ← OpenPBR Surface 1.39 (UE Substrate / Arnold / USD)
     glass_led.mtlx  neural_glass.mtlx
   shaders/deform.glsl   ← shared height-field deform (web + UE/WPO reference)
-web/index.html          ← live editor: InstancedMesh, GPU deform, glass, LED, video, JSON export
+web/index.html          ← live editor (INSTANCED): InstancedMesh volume, GPU deform, glass, LED, video, JSON
+web/cube.html           ← live editor (SINGLE BLOCK): one solid glass rectangle, triplanar LED, same stack
+bridge/                 ← tested web→UE5 JSON pipeline (from the parallel build)
+  param_server.py         zero-dep stdlib server, GET/PUT /params + live SSE
+  control_panel.html      slider web editor
+  ue5_remote_apply.py     pushes params into a UE5 Material Parameter Collection live
+  wave_params_schema.json single source of truth for the bridge
 blender/
   build_instanced.py    ← bake INSTANCED volume → GLB(EXT_mesh_gpu_instancing)+USD+USDZ+ABC
   build_glass_led.py    ← single hero slab bake

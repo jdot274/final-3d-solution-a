@@ -1,0 +1,223 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "NeuralWaveDynamicMaterial",
+  "description": "Single source of truth for the neural wave mesh + material. These parameters are pushed live over HTTP/JSON to UE5 (Material Instance Dynamic + Material Parameter Collection), Blender, and the web preview.",
+  "type": "object",
+  "version": "1.0.0",
+  "properties": {
+    "mesh": {
+      "type": "object",
+      "description": "Wave geometry / displacement parameters",
+      "properties": {
+        "wave_speed": {
+          "type": "number",
+          "default": 2.0,
+          "min": 0.0,
+          "max": 10.0,
+          "ue5": "scalar",
+          "mpc": "WaveSpeed"
+        },
+        "wave_amplitude": {
+          "type": "number",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 5.0,
+          "ue5": "scalar",
+          "mpc": "WaveAmplitude"
+        },
+        "wave_decay": {
+          "type": "number",
+          "default": 0.25,
+          "min": 0.0,
+          "max": 1.0,
+          "ue5": "scalar",
+          "mpc": "WaveDecay"
+        },
+        "wave_frequency": {
+          "type": "number",
+          "default": 1.0,
+          "min": 0.1,
+          "max": 8.0,
+          "ue5": "scalar",
+          "mpc": "WaveFrequency"
+        },
+        "displacement": {
+          "type": "number",
+          "default": 40.0,
+          "min": 0.0,
+          "max": 200.0,
+          "ue5": "scalar",
+          "mpc": "Displacement"
+        }
+      }
+    },
+    "material": {
+      "type": "object",
+      "description": "Deep-blue glass PBR / OpenPBR material parameters",
+      "properties": {
+        "base_color": {
+          "type": "array",
+          "items": { "type": "number" },
+          "length": 3,
+          "default": [0.0, 0.1, 0.42],
+          "ue5": "vector",
+          "param": "BaseColor"
+        },
+        "ior": {
+          "type": "number",
+          "default": 1.5,
+          "min": 1.0,
+          "max": 2.5,
+          "ue5": "scalar",
+          "param": "IOR"
+        },
+        "roughness": {
+          "type": "number",
+          "default": 0.06,
+          "min": 0.0,
+          "max": 1.0,
+          "ue5": "scalar",
+          "param": "Roughness"
+        },
+        "metallic": {
+          "type": "number",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "ue5": "scalar",
+          "param": "Metallic"
+        },
+        "transmission": {
+          "type": "number",
+          "default": 0.85,
+          "min": 0.0,
+          "max": 1.0,
+          "ue5": "scalar",
+          "param": "Transmission"
+        },
+        "thickness": {
+          "type": "number",
+          "default": 1.2,
+          "min": 0.0,
+          "max": 10.0,
+          "ue5": "scalar",
+          "param": "Thickness"
+        },
+        "clearcoat": {
+          "type": "number",
+          "default": 0.6,
+          "min": 0.0,
+          "max": 1.0,
+          "ue5": "scalar",
+          "param": "Clearcoat"
+        },
+        "iridescence": {
+          "type": "number",
+          "default": 0.4,
+          "min": 0.0,
+          "max": 1.0,
+          "ue5": "scalar",
+          "param": "Iridescence"
+        },
+        "irid_thickness": {
+          "type": "number",
+          "default": 380.0,
+          "min": 100.0,
+          "max": 1000.0,
+          "ue5": "scalar",
+          "param": "IridThickness"
+        },
+        "emission_color": {
+          "type": "array",
+          "items": { "type": "number" },
+          "length": 3,
+          "default": [0.05, 0.45, 1.0],
+          "ue5": "vector",
+          "param": "EmissionColor"
+        },
+        "emission_strength": {
+          "type": "number",
+          "default": 2.5,
+          "min": 0.0,
+          "max": 20.0,
+          "ue5": "scalar",
+          "param": "EmissionStrength"
+        },
+        "opacity": {
+          "type": "number",
+          "default": 0.92,
+          "min": 0.0,
+          "max": 1.0,
+          "ue5": "scalar",
+          "param": "Opacity"
+        }
+      }
+    },
+    "layers": {
+      "type": "array",
+      "description": "Texture / effect layers with blend modes (LED-volume style stack)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "enabled": { "type": "boolean", "default": true },
+          "blend_mode": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "add",
+              "multiply",
+              "screen",
+              "overlay",
+              "subtract"
+            ],
+            "default": "add"
+          },
+          "opacity": {
+            "type": "number",
+            "default": 1.0,
+            "min": 0.0,
+            "max": 1.0
+          },
+          "texture": {
+            "type": "string",
+            "description": "image / video / EXR / SVG / lottie URL or path"
+          },
+          "scale": { "type": "number", "default": 1.0 },
+          "scroll_speed": {
+            "type": "array",
+            "items": { "type": "number" },
+            "length": 2,
+            "default": [0.0, 0.0]
+          }
+        }
+      },
+      "default": [
+        {
+          "name": "base_wave",
+          "enabled": true,
+          "blend_mode": "normal",
+          "opacity": 1.0,
+          "scale": 1.0,
+          "scroll_speed": [0.0, 0.0]
+        },
+        {
+          "name": "led_glow",
+          "enabled": true,
+          "blend_mode": "add",
+          "opacity": 0.8,
+          "scale": 2.0,
+          "scroll_speed": [0.05, 0.0]
+        },
+        {
+          "name": "iridescence",
+          "enabled": true,
+          "blend_mode": "screen",
+          "opacity": 0.4,
+          "scale": 4.0,
+          "scroll_speed": [0.0, 0.03]
+        }
+      ]
+    }
+  }
+}
