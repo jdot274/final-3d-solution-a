@@ -1,0 +1,50 @@
+{
+  "config": {
+    "$schema": "single source of truth \u2014 web editor, Blender bake, and USD/UE all read this",
+    "instancing": {
+      "countX": 7,
+      "countY": 5,
+      "countZ": 3,
+      "spacing": 0.62,
+      "phaseSpread": 1.2,
+      "hueSpread": 0.5
+    },
+    "unit": {
+      "sizeX": 0.5,
+      "sizeY": 0.5,
+      "subdiv": 36
+    },
+    "motion": {
+      "driver": "softbody",
+      "amp": 0.16,
+      "freq": 3.0,
+      "speed": 1.0,
+      "softness": 1.0,
+      "noise": 0.5
+    },
+    "glass": {
+      "color": "#0b3cff",
+      "roughness": 0.06,
+      "transmission": 0.9,
+      "ior": 1.5,
+      "thickness": 0.6,
+      "iridescence": 0.5,
+      "clearcoat": 0.6,
+      "attenuation": 1.0
+    },
+    "led": {
+      "on": true,
+      "res": 24,
+      "emissive": 1.6
+    },
+    "material": "core/materials/glass_openpbr.mtlx",
+    "frames": 48
+  },
+  "instances": 105,
+  "exports": {
+    "glb": 6203368,
+    "usd": 923164,
+    "usdz": 923331,
+    "abc": 4177365
+  }
+}
