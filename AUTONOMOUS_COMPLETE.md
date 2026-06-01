@@ -27,7 +27,23 @@ Launcher), run via Tools → Execute Python File, in this order:**
 5. **Press Play** → fly the quadcopter pawn.
 (Plugin→role map: `unreal/MASTER_SOLUTION.md`. Full pipeline: `HANDOFF.md`.)
 
-## The honest blocker (only one left)
+## ✅ UE CRASH SOLVED — the real fix (found late in the session)
+The editor was crashing because its **startup map was `L_GlassSphere`** (a heavy recovered map
+with a translucent-Nanite court) auto-loading on launch. **Fix applied:** `EditorStartupMap`
+→ `L_SPIN_Black` (light) in `Config/DefaultEngine.ini`. Result: **the editor now opens and
+stays stable (verified 300+ seconds uptime, no crash).** The driver reinstall + Vulkan helped;
+the light startup map was the decisive fix.
+
+### How to finish in UE (editor is stable now — do this from the editor UI, not the flaky bridge):
+1. Open the project from Epic Launcher → it opens to the **light map** and stays up.
+2. **Tools → Execute Python File → `unreal/build_ue_game_level.py`** (quadcopter game mode,
+   light glass floor, glass volume, arena, scoreboard, LS_Opening sequence, bakeable lights).
+3. **Drag `assets/game/SPIN_FullLED.usdc` into the Content Browser** to import the full LED
+   scene (logo, grass, scoreboard, green disc rackets, hologram ball, glass court).
+4. **Build → Build Lighting** to bake lightmaps. **Window → Cinematics → Movie Render Queue** to render.
+(The MCP bridge got saturated by automation this session; running from the editor UI bypasses it.)
+
+## The honest note
 **UE won't stay open on this machine** — RTX 50-series + UE 5.7 compatibility. The driver reinstall
 helped (it held ~48 s) but the heavy recovered court mesh + the 50-series issue still kill it under
 automation. It is stable enough to drive **interactively** — open it yourself and run the staged
