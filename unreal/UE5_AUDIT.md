@@ -22,3 +22,9 @@ Applied: SkyLight source = SLS_SPECIFIED_CUBEMAP = EpicQuadPanorama + a SphereRe
 ONE connected mesh (UnifiedGlassLED) → import as Nanite static mesh → opaque ClearCoat
 blue emissive + fresnel + grid functions + studio-HDRI reflections + WPO wave.
 (Opaque clearcoat = Nanite-compatible AND glossy; translucent is NOT Nanite-compatible.)
+
+## NvPresent64 crash — definitive fix: run editor on VULKAN
+The crash is the NVIDIA **DirectX** present hook (D3D12 only). Launch the editor with
+`-vulkan` (config now has +VulkanTargetedShaderFormats=SF_VULKAN_SM6). Vulkan SM6 keeps
+Nanite + Lumen but bypasses the DX present path = no NvPresent64 crash.
+  UnrealEditor.exe MyProjectTests.uproject -vulkan
