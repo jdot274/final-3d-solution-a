@@ -1,0 +1,3 @@
+{ "name": "calm_blue", "motion": { "driver": "softbody", "amp": 0.10, "speed": 0.6, "noise": 0.2 },
+  "glass": { "color": "#0b3cff", "transmission": 0.95, "iridescence": 0.3 },
+  "instancing": { "countX": 6, "countY": 4, "countZ": 2, "spacing": 0.7 } }

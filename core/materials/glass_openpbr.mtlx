@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<!--
+  DeepBlueGlassLED.mtlx — OpenPBR Surface material (MaterialX 1.39)
+  Deep-blue glassy LED-volume material for the voxel wave GLB.
+  OpenPBR is the AcademySoftwareFoundation successor to Standard Surface,
+  supported by UE5 (Substrate), Arnold, RenderMan, MaterialX, USD.
+-->
+<materialx version="1.39" colorspace="lin_rec709">
+  <open_pbr_surface name="SR_deep_blue_glass" type="surfaceshader">
+    <!-- Base (deep blue) -->
+    <input name="base_weight"        type="float"  value="1.0" />
+    <input name="base_color"         type="color3" value="0.0 0.10 0.42" />
+    <input name="base_metalness"     type="float"  value="0.0" />
+
+    <!-- Specular / glass -->
+    <input name="specular_weight"    type="float"  value="1.0" />
+    <input name="specular_color"     type="color3" value="0.35 0.62 1.0" />
+    <input name="specular_roughness" type="float"  value="0.06" />
+    <input name="specular_ior"       type="float"  value="1.5" />
+
+    <!-- Transmission (glassy see-through) -->
+    <input name="transmission_weight"      type="float"  value="0.85" />
+    <input name="transmission_color"       type="color3" value="0.0 0.18 0.55" />
+    <input name="transmission_depth"       type="float"  value="3.0" />
+    <input name="transmission_scatter"     type="color3" value="0.0 0.12 0.40" />
+
+    <!-- Coat (clear glassy lacquer) -->
+    <input name="coat_weight"        type="float" value="0.6" />
+    <input name="coat_roughness"     type="float" value="0.02" />
+    <input name="coat_ior"           type="float" value="1.5" />
+
+    <!-- Thin-film iridescence on the glass surface -->
+    <input name="thin_film_weight"   type="float" value="0.4" />
+    <input name="thin_film_thickness" type="float" value="380.0" />
+
+    <!-- Emission (LED glow, driven by height texture) -->
+    <input name="emission_luminance" type="float"  value="1500.0" />
+    <input name="emission_color"     type="color3" value="0.05 0.45 1.0" />
+
+    <!-- Geometry -->
+    <input name="geometry_opacity"   type="float"  value="0.92" />
+  </open_pbr_surface>
+
+  <surfacematerial name="M_DeepBlueGlassLED" type="material">
+    <input name="surfaceshader" type="surfaceshader" nodename="SR_deep_blue_glass" />
+  </surfacematerial>
+</materialx>

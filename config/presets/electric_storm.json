@@ -1,0 +1,4 @@
+{ "name": "electric_storm", "motion": { "driver": "waves", "amp": 0.34, "freq": 6.0, "speed": 2.2, "noise": 1.1 },
+  "glass": { "color": "#1466ff", "transmission": 0.8, "iridescence": 0.9, "clearcoat": 0.8 },
+  "led": { "emissive": 3.0, "res": 32 },
+  "instancing": { "countX": 9, "countY": 6, "countZ": 4, "spacing": 0.55, "phaseSpread": 2.2, "hueSpread": 0.9 } }

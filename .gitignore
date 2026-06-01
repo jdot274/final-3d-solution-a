@@ -9,3 +9,5 @@ __pycache__/
 # os
 Thumbs.db
 .DS_Store
+# stray session artifacts (not part of the solution)
+production/

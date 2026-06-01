@@ -1,0 +1,144 @@
+<?xml version="1.0"?>
+<!--
+  NeuralWaveGlass.mtlx  —  MaterialX 1.38 material definition
+  Supports: USD, Houdini, Maya, Blender (via MaterialX add-on), UE5 (via Datasmith)
+  Parameters are exposed as MaterialX public interface inputs so they can
+  be driven by Python / JSON / HTTP live feeds in any host application.
+-->
+<materialx version="1.38" colorspace="lin_rec709">
+
+  <nodedef name="ND_neural_wave_glass" node="neural_wave_glass"
+           doc="Animated glass wave material with triplanar normals">
+
+    <!-- Animatable wave parameters -->
+    <input name="time"            type="float" value="0.0"
+           uimin="0" uimax="100" uiname="Animation Time (s)" />
+    <input name="wave_decay"      type="float" value="0.25"
+           uiname="Wave Decay" />
+    <input name="wave_amplitude"  type="float" value="1.0"
+           uiname="Wave Amplitude" />
+
+    <!-- Glass parameters -->
+    <input name="ior"             type="float" value="1.45"
+           uiname="IOR (glass=1.45)" />
+    <input name="roughness"       type="float" value="0.04"
+           uiname="Surface Roughness" />
+    <input name="transmission"    type="float" value="0.88"
+           uiname="Transmission" />
+    <input name="clearcoat"       type="float" value="0.6"
+           uiname="Clearcoat" />
+    <input name="iridescence"     type="float" value="0.95"
+           uiname="Iridescence" />
+    <input name="irid_thickness"  type="float" value="450.0"
+           uiname="Irid Film Thickness (nm)" />
+
+    <!-- Colour tint -->
+    <input name="glass_tint"      type="color3" value="0.02 0.55 0.95"
+           uiname="Glass Tint" />
+    <input name="emission"        type="color3" value="0.0 0.18 0.28"
+           uiname="Crest Emission" />
+
+    <!-- Triplanar normal scale -->
+    <input name="normal_scale"    type="float" value="0.85"
+           uiname="Normal Map Scale" />
+    <input name="normal_texture"  type="filename" value=""
+           uiname="Normal Map (optional override)" />
+
+    <output name="out" type="surfaceshader" />
+  </nodedef>
+
+  <!-- ── FUNCTIONAL GRAPH ── -->
+  <nodegraph name="NG_neural_wave_glass" nodedef="ND_neural_wave_glass">
+
+    <!-- World position for triplanar -->
+    <position name="world_pos" type="vector3" space="world" />
+
+    <!-- Triplanar normal sampling (3 scales) -->
+    <triplanarprojection name="tri_macro" type="vector2">
+      <input name="filex" type="filename"  interfacename="normal_texture" />
+      <input name="filey" type="filename"  interfacename="normal_texture" />
+      <input name="filez" type="filename"  interfacename="normal_texture" />
+      <input name="position" type="vector3" nodename="world_pos" />
+      <input name="scalex"   type="float"  value="0.5" />
+      <input name="scaley"   type="float"  value="0.5" />
+      <input name="scalez"   type="float"  value="0.5" />
+    </triplanarprojection>
+
+    <!-- Normal map decode (tangent space) -->
+    <normalmap name="surface_normal" type="vector3">
+      <input name="scale" type="float" interfacename="normal_scale" />
+    </normalmap>
+
+    <!-- Iridescence layer -->
+    <thin_film_bsdf name="irid_layer" type="BSDF">
+      <input name="thickness"    type="float" interfacename="irid_thickness" />
+      <input name="ior"          type="float" value="1.3" />
+    </thin_film_bsdf>
+
+    <!-- Transmission BSDF (glass body) -->
+    <dielectric_bsdf name="transmission_bsdf" type="BSDF">
+      <input name="weight"       type="float"  interfacename="transmission" />
+      <input name="tint"         type="color3" interfacename="glass_tint" />
+      <input name="ior"          type="float"  interfacename="ior" />
+      <input name="roughness"    type="vector2" value="0.04 0.04" />
+      <input name="normal"       type="vector3" nodename="surface_normal" />
+    </dielectric_bsdf>
+
+    <!-- Specular reflection layer -->
+    <dielectric_bsdf name="specular_bsdf" type="BSDF">
+      <input name="weight"       type="float"  value="1.0" />
+      <input name="tint"         type="color3" value="0.55 0.85 1.0" />
+      <input name="ior"          type="float"  interfacename="ior" />
+      <input name="roughness"    type="vector2" value="0.04 0.04" />
+      <input name="normal"       type="vector3" nodename="surface_normal" />
+    </dielectric_bsdf>
+
+    <!-- Layer: iridescence over specular -->
+    <layer name="irid_over_spec" type="BSDF">
+      <input name="top"    type="BSDF" nodename="irid_layer" />
+      <input name="base"   type="BSDF" nodename="specular_bsdf" />
+    </layer>
+
+    <!-- Layer: spec over transmission -->
+    <layer name="glass_stack" type="BSDF">
+      <input name="top"    type="BSDF" nodename="irid_over_spec" />
+      <input name="base"   type="BSDF" nodename="transmission_bsdf" />
+    </layer>
+
+    <!-- Clearcoat -->
+    <dielectric_bsdf name="clearcoat_bsdf" type="BSDF">
+      <input name="weight"    type="float" interfacename="clearcoat" />
+      <input name="roughness" type="vector2" value="0.02 0.02" />
+    </dielectric_bsdf>
+    <layer name="final_stack" type="BSDF">
+      <input name="top"  type="BSDF" nodename="clearcoat_bsdf" />
+      <input name="base" type="BSDF" nodename="glass_stack" />
+    </layer>
+
+    <!-- Emission (wave crest glow) -->
+    <uniform_edf name="crest_glow" type="EDF">
+      <input name="color" type="color3" interfacename="emission" />
+    </uniform_edf>
+
+    <!-- Surface shader output -->
+    <surface name="surface_out" type="surfaceshader">
+      <input name="bsdf"       type="BSDF" nodename="final_stack" />
+      <input name="edf"        type="EDF"  nodename="crest_glow" />
+      <input name="opacity"    type="float" value="0.92" />
+    </surface>
+
+    <output name="out" type="surfaceshader" nodename="surface_out" />
+  </nodegraph>
+
+  <!-- Material binding -->
+  <material name="M_NeuralWaveGlass">
+    <shaderref name="SR_neural_wave_glass" node="neural_wave_glass">
+      <bindinput name="time"           type="float" value="0.0" />
+      <bindinput name="wave_decay"     type="float" value="0.25" />
+      <bindinput name="glass_tint"     type="color3" value="0.02 0.55 0.95" />
+      <bindinput name="iridescence"    type="float" value="0.95" />
+      <bindinput name="transmission"   type="float" value="0.88" />
+    </shaderref>
+  </material>
+
+</materialx>
