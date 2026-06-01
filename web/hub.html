@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>final-3d-solution-a · versions hub</title>
+<style>
+  :root{--blue:#0b3cff;--ink:#cfe0ff;--dim:#7fa8ff}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:radial-gradient(120% 120% at 50% -10%,#0a1430 0%,#04050a 60%);
+    color:var(--ink);font-family:ui-monospace,Menlo,monospace;padding:48px 24px}
+  h1{font-size:30px;margin:0 0 4px;letter-spacing:.5px}
+  h1 span{color:var(--dim);font-weight:400}
+  p.sub{color:var(--dim);margin:0 0 32px;font-size:13px;opacity:.85}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;max-width:1100px}
+  a.card{display:block;text-decoration:none;color:var(--ink);padding:20px;border-radius:14px;
+    background:linear-gradient(160deg,rgba(20,60,255,.12),rgba(10,20,48,.5));
+    border:1px solid rgba(127,168,255,.18);transition:.2s;backdrop-filter:blur(6px)}
+  a.card:hover{transform:translateY(-3px);border-color:rgba(127,168,255,.5);box-shadow:0 10px 40px rgba(11,60,255,.25)}
+  a.card.live::after{content:'▶ live';float:right;color:#6effa8;font-size:11px}
+  a.card.file::after{content:'baked';float:right;color:#ffd06e;font-size:11px}
+  .t{font-size:16px;font-weight:700;margin-bottom:6px}
+  .d{font-size:12px;color:var(--dim);line-height:1.5;opacity:.9}
+  footer{margin-top:36px;color:var(--dim);font-size:11px;opacity:.6;max-width:1100px}
+  code{color:#9fd0ff}
+</style>
+</head>
+<body>
+  <h1>final-3d-solution-a <span>· glass LED volume stack</span></h1>
+  <p class="sub">Every version, kept separate. Real-time editors + baked portable assets, one open-standard stack.</p>
+  <div class="grid">
+    <a class="card live" href="index.html">
+      <div class="t">Instanced Volume</div>
+      <div class="d">GPU <code>InstancedMesh</code> grid of glass LED tiles (countX·Y·Z). Per-instance phase/hue.
+        Bridge→UE5, web GLB export, load-baked. The flagship dynamic editor.</div>
+    </a>
+    <a class="card live" href="cube.html">
+      <div class="t">Single Block</div>
+      <div class="d">ONE solid subdivided glass rectangle, whole-block deform, triplanar LED wrapping every face.
+        Same shader/glass/JSON stack, one mesh.</div>
+    </a>
+    <a class="card file" href="../assets/hero/GlassLED_Slab.glb">
+      <div class="t">Layered Slab (hero)</div>
+      <div class="d">4 stacked glass layers, 40-frame soft-body morph. GLB + USDZ + ABC + .blend.</div>
+    </a>
+    <a class="card file" href="../assets/instanced/glass_led_volume.glb">
+      <div class="t">Instanced — baked</div>
+      <div class="d">105 instances, glTF <code>EXT_mesh_gpu_instancing</code> + USD + USDZ + ABC.</div>
+    </a>
+    <a class="card file" href="../assets/voxel/voxel_wave.glb">
+      <div class="t">Voxel Wave</div>
+      <div class="d">1600-bar LED-volume wave (geometric pixels). OpenPBR glass. From the parallel build.</div>
+    </a>
+    <a class="card file" href="../assets/variants/LEDVolume_Waves.glb">
+      <div class="t">Driver Variants</div>
+      <div class="d">Waves / Heightmap / Video drivers, each as GLB + USDZ + ABC.</div>
+    </a>
+  </div>
+  <footer>
+    Bridge: <code>python bridge/param_server.py</code> (:8787) → live params into UE5 MPC.
+    AAA path: see <code>docs/AAA_PLAYBOOK.md</code>. Open standards: glTF · USD · OpenPBR/MaterialX · Alembic.
+  </footer>
+</body>
+</html>

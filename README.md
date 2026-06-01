@@ -17,6 +17,10 @@ Blender bake, the USD/glTF exports, and the UE import.
 This is the **merged best-of-both**: the live interactive editor + USDZ from one build,
 fused with the OpenPBR glass, voxel LED-volume geometry, and rendered previews from the other.
 
+**Start here:** open [`web/hub.html`](web/hub.html) — links every version. ·
+All versions catalogued in [`VERSIONS.md`](VERSIONS.md) (kept separate, never overwritten). ·
+Making AAA things → [`docs/AAA_PLAYBOOK.md`](docs/AAA_PLAYBOOK.md).
+
 ---
 
 ## Structure (single source of truth → adapters)
