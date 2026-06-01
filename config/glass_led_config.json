@@ -1,0 +1,21 @@
+{
+  "name": "GlassLED_Slab",
+  "rect_x": 3.0,
+  "rect_y": 1.6,
+  "grid_x": 44,
+  "grid_y": 28,
+  "layers": 4,
+  "layer_gap": 0.06,
+  "frames": 40,
+  "amp": 0.22,
+  "softness": 1.0,
+  "color_rgb": [
+    0.04,
+    0.22,
+    0.85
+  ],
+  "roughness": 0.07,
+  "transmission": 0.92,
+  "ior": 1.45,
+  "emission_strength": 1.2
+}

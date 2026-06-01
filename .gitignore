@@ -1,0 +1,11 @@
+# build/preview logs
+*.log
+# python cache
+__pycache__/
+*.pyc
+# blender backups
+*.blend1
+*.blend2
+# os
+Thumbs.db
+.DS_Store
